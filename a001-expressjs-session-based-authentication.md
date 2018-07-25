@@ -22,7 +22,8 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
   * [Edit `public/index.html`](#edit-publicindexhtml)
   * [Edit `public/style.css`](#edit-publicstylecss)
 * [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
-* [Step 2: Step 2: `POST`ing Login Credentials to the Server](#step-2-posting-login-credentials-to-the-server)
+* [Step 2: `POST`ing Login Credentials to the Server](#step-2-posting-login-credentials-to-the-server)
+* [Step 3: Implementing the `/signup` Route](#step-3-implementing-the-signup-route)
   
 ## Assumed Knowledge
 
@@ -58,10 +59,11 @@ cd walkthrough
 mkdir public
 
 # Install dependencies
-npm install express
+npm install express bcrypt
 
 # Create files
 touch server.js
+touch User.js
 
 cd public
 touch index.html
@@ -86,6 +88,61 @@ app.get('/', function(request, response) {
 let listener = app.listen(3000, function() {
   console.log('Your app is listening on port ' + listener.address().port);
 });
+```
+
+### Edit `User.js`
+
+```javascript
+module.exports = (function() {
+  let database = { entries: 0, users: {} },
+      create = () => {},
+      findOne = () => {},
+      publicAPI = {};
+  
+  create = function({ username, password }) {
+    return new Promise(function(resolve, reject) {
+      let usernameIsString = typeof username === 'string',
+        passwordIsString = typeof password === 'string',
+        valuesAreValid = usernameIsString && passwordIsString;
+    
+      if (valuesAreValid) {
+        let uid = 'uid' + (++database.entries),
+            user = { uid, username, password };
+
+        database.users[uid] = user;
+        resolve({ ...user });
+      }
+      else {
+        throw Error('Username and/or password are strings!');
+      }
+    });
+  };
+  
+  findOne = function({ username, uid }) {
+    return new Promise(function(resolve, reject) {
+      let user = database.users[uid];
+      
+      if (!user) {
+        for (let id in database.users) {
+          let entry = database.users[id];
+          
+          if (username === entry.username) {
+            user = { ...entry };
+          }
+        }
+      }
+      
+      resolve(user || null);
+    });
+  };
+  
+  publicAPI = {
+    create,
+    findOne
+  };
+                
+  return publicAPI;
+})();
 ```
 
 ### Edit `public/index.html`
@@ -234,8 +291,6 @@ function handleButtonClick(event) {
       //   '\nStatus: ', response.status,
       //   '\nStatus text: ', response.statusText
       // );
-      
-      return response.text();
     });
 }
 ```
@@ -284,6 +339,8 @@ is currently `undefined`. To have the JSON string sent from the client parsed to
 `request.body`, we can use the `bodyParser` middleware:
 
 ```javascript
+// server.js
+
 let express = require('express');
 let bodyParser = require('body-parser');
 
@@ -299,3 +356,162 @@ app.use(bodyParser.json());
 If everything is implemented correctly, `request.body` should now be a JSON object
 that mirrors what is sent from the client. Do keep in mind that logging sensitive
 data to the console is a potential security risk!
+
+## Step 3: Implementing the `/signup` Route
+
+This step involves the implemention for data is posted to the `/signup` route:
+
+* Check whether the username submitted by the client already exists
+* Create a user if the username received from the client does not already exist and the password is valid
+
+**Note**: we won't be setting up and using a database and using a DBMS in this
+walkthrough—user data is stored in a plain old JavaScript object
+([POJO](https://leanpub.com/javascriptallongesix/read)). There is a multitude
+of reasons for why one should use a database instead of writing to disk in a real,
+production environment, so please don't do this in a real app/website!
+
+**Note 2**: we have omitted both client-side and server-side password valdiation
+in this walkthrough—please make sure you implement those in a real app/website!
+
+To begin with, import our fake `User` model:
+
+```javascript
+// server.js
+
+// ...
+
+let app = express();
+
+let User = require('./User.js');
+
+// ...
+```
+
+To check if a username already exists in the database, we use the
+`findOne` method, which either returns a `Promise` object that is
+resolved with `{ uid, username, password }` when a user with the
+username provided is found, or `null` otherwise:
+
+```javascript
+// server.js
+
+app.post('/signup', function(request, response) {
+  let { username, password } = request.body;
+  
+  User.findOne({ username })
+    .then((user) => {
+      // console.log(user);
+    });
+  
+  response.status(501).send('(◕︿◕✿)');
+});
+```
+
+And if a user does not exist, we should first encrypt create an entry
+in the database using the `create` method; we are using the popular library
+[`bcrypt`](https://github.com/kelektiv/node.bcrypt.js) to do this:
+
+```javascript
+// server.js
+
+// ...
+
+let bcrypt = require('bcrypt');
+
+// ...
+
+app.post('/signup', function(request, response) {
+  let { username, password } = request.body;
+  
+  User.findOne({ username })
+    .then((user) => {
+      if (!user) {
+        bcrypt.hash(password, 12, function(error, hash) {
+          // console.log(
+          //   'Password: ', password,
+          //   '\nHash: ', hash
+          // );
+        });
+      }
+    });
+  
+  response.status(501).send('(◕︿◕✿)');
+});
+```
+
+**Note**: If you unsure why passwords need to be encrypted, please spend
+some time researching into the topic. I personally find
+[this article](https://hackernoon.com/your-node-js-authentication-tutorial-is-wrong-f1a3bf831a46)
+to be a good starting point.
+
+Using the hash created by bcrypt, we can now create a new user using the
+`create` method available to `User` and send a response back to the client
+accordingly:
+
+```javascript
+// server.js
+
+// ...
+
+app.post('/signup', function(request, response) {
+  // console.log(`/signup, POST, request.body: ${JSON.stringify(request.body)}`);
+  
+  let { username, password } = request.body;
+  
+  User.findOne({ username })
+    .then((user) => {
+      if (!user) {
+        bcrypt.hash(password, 12, function(error, hash) {
+          // console.log(
+          //   'Password: ', password,
+          //   '\nHash: ', hash
+          // );
+          User.create({ username, password: hash });
+          
+          response.json({ message: 'Successfully created new user.' });
+        });
+      }
+      else {
+        response.json({ error: 'Username already taken.' });
+      }
+    });
+});
+```
+
+The `create` method returns a `Promise` object that is resolved with an
+object in the form of `{ uid, username, password }` if you wish to inspect
+the object representing a newly created user.
+
+Finally, we process the response from the server on the client side by
+returning `response.json()` in the existing `then` and adding a second
+`then`:
+
+```javascript
+// public/client.js
+
+// ...
+
+function handleButtonClick(event) {
+  // ...
+      
+  fetch(`${HOST}/${route}`, { method, headers, body })
+    .then((response) => {
+      // console.log(
+      //   'OK: ', response.ok,
+      //   '\nStatus: ', response.status,
+      //   '\nStatus text: ', response.statusText
+      // );
+    
+      return response.json();
+    })
+    .then((data) => {
+      // console.log(data);
+    })
+    .catch((error) => {
+      // console.error(`Something went wrong during sign up! Error: ${error}`);
+    });
+}
+```
+
+This is a good point to try creating users and inspect what is logged to
+the console on both the server side and client side.
