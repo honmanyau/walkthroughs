@@ -110,20 +110,20 @@ let listener = app.listen(3000, function() {
           <legend>Login credentials</legend>
           <label>
             Username:
-            <input type="text" placeholder="Username" />
+            <input id="input-username" type="text" placeholder="Username" />
           </label>
           <label>
             Password:
-            <input type="password" placeholder=="•••••••••" />
+            <input id="input-password" type="password" placeholder="•••••••••" />
           </label>
         </fieldset>
         
-        <button id="button-signin" type="submit" class="button-signin">Sign in</button>
+        <button id="button-signup" class="button-form" type="button" data-route="signup">Sign up</button>
+        <button id="button-signin" class="button-form" type="button" data-route="signin">Sign in</button>
       </form>
     </main>
   </body>
 </html>
-
 ```
 
 ### Edit `public/style.css`
@@ -169,7 +169,7 @@ label {
   height: 100vh;
 }
 
-.button-signin {
+.button-form {
   margin: 1em 0em;
   font-size: 1em;
   line-height: 2em;
@@ -178,47 +178,55 @@ label {
 ```
 ## Step 1: Sending Login Credentials to the Server
 
-The features we will be implementing:
+This step involves the following:
 
-* Write Client-side code so that login credentials can be sent to the server in JSON format
-* Setup a `POST` route `/signin` on the server for accepting login credentials from the client
+* Write client-side code so that login credentials can be sent to the server in JSON format
+* Make the functionality available to both the "Sign in" and "Sign up" buttons
 
 To avoid some of the complexities involved with the `multipart/form-data` content type,
 login credential are sent in the JSON format in this case. It is worth noting that, for
 security reasons, login credentials should be sent over SSL/TLS, or in other words,
 under the HTTPS protocol.
 
-An event listener should first be added to the sign-in button to capture the action:
+An event listener should first be added to the sign-in and sign-up buttons to capture the 
+action:
 
 ```javascript
 // public/client.js
+
 const HOST = '';
 let signInButton = document.getElementById('button-signin');
+let signUpButton = document.getElementById('button-signup');
 
-signInButton.addEventListener('click', handleSignInButtonClick);
+signInButton.addEventListener('click', handleButtonClick);
+signUpButton.addEventListener('click', handleButtonClick);
 
-function handleSignInButtonClick(event) {
+function handleButtonClick(event) {
   event.preventDefault();
 }
 ```
 
-The event handler `handleSignInButtonClick` is meant to retrieve the values of the
-username and password form inputs and `POST` if off to `/signin`. It can be
-implemented as follows:
+The event handler `handleButtonClick` is meant to retrieve the values of the
+username and password form inputs and `POST` if off to the appropriate route
+on the server; the appropriate route is store as a `data-` attribute on each
+of the button elements in our case. The implementation is as follows:
 
 ```javascript
+// public/client.js
+
 // ...
 
-function handleSignInButtonClick(event) {
+function handleButtonClick(event) {
   event.preventDefault();
   
-  let method = 'POST',
+  let route = event.target.datasets.route,
+      method = 'POST',
       headers = { 'Content-Type': 'application/json' },
       username = document.getElementById('input-username').value,
       password = document.getElementById('input-password').value,
       body = JSON.stringify({ username, password });
       
-  fetch(`${HOST}/signin`, { method, headers, body })
+  fetch(`${HOST}/${route}`, { method, headers, body })
     .then((response) => {
       // console.log(
       //   'OK: ', response.ok,
@@ -231,8 +239,9 @@ function handleSignInButtonClick(event) {
 }
 ```
 
-Since the '/signin' 'POST' route hasn't been set up on the server, submitting the
-form will result in a `404` response (give it a go by uncommenting `console.log`!).
+Since the `/signin` and `/signup` `POST` routes have not been set up on the server,
+clicking on the buttons will result in a `404` response (give it a go by uncommenting
+`console.log`!).
 
 Once you are happy with the code above and the response returned by the server,
 setup the `POST` route as follows:
@@ -275,5 +284,3 @@ app.use(bodyParser.json());
 If everything is implemented correctly, `request.body` should now be a JSON object
 that mirrors what is sent from the client. Do keep in mind that logging sensitive
 data to the console is a potential security risk!
-
-
