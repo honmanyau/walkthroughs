@@ -22,6 +22,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
   * [Edit `public/index.html`](#edit-publicindexhtml)
   * [Edit `public/style.css`](#edit-publicstylecss)
 * [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
+* [Step 2: Step 2: `POST`ing Login Credentials to the Server](#step-2-posting-login-credentials-to-the-server)
   
 ## Assumed Knowledge
 
@@ -243,6 +244,13 @@ Since the `/signin` and `/signup` `POST` routes have not been set up on the serv
 clicking on the buttons will result in a `404` response (give it a go by uncommenting
 `console.log`!).
 
+### Step 2: `POST`ing Login Credentials to the Server
+
+This step involves the following:
+
+* Initial setup of a `POST` route, `/signup`, on the server for creating a new user with the credentials provided
+* Initial setup of a `POST` route, `/signin`, on the server for authenticating an existing user
+
 Once you are happy with the code above and the response returned by the server,
 setup the `POST` route as follows:
 
@@ -253,6 +261,12 @@ setup the `POST` route as follows:
 
 // ...
 
+app.post('/signup', function(request, response) {
+  // console.log(`/signup, POST, request.body: ${request.body}`);
+  
+  response.status(501).send('(◕︿◕✿)');
+});
+
 app.post('/signin', function(request, response) {
   // console.log(`/signin, POST, request.body: ${request.body}`);
   
@@ -260,9 +274,10 @@ app.post('/signin', function(request, response) {
 });
 ```
 
-We are setting up the `/signin` route to return a `501 Not Implemented` reponse
-since we are leaving its implementation for later. Posting login credentials
-should now result in a `501` reponse instead of a `404` response.
+We are setting up the `/signup` and `/signin` routes to return a `501 Not
+Implemented` reponse since we are leaving its implementation for later.
+Posting login credentials should now result in a `501` reponse instead of
+a `404` response.
 
 If you are a step ahead and have already looked at `request.body` to find that it
 is currently `undefined`. To have the JSON string sent from the client parsed to
