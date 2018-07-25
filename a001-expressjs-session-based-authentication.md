@@ -14,6 +14,14 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 ## Table of Contents
 
 * [Assumed Knowledge](#assumed-knowledge)
+* [General Notes](#general-notes)
+  * [Regarding `console` Methods](#regarding-console-methods)
+* [Setup](#setup)
+  * [Create Files and Directories](#create-files-and-directories)
+  * [Edit `server.js`](#edit-serverjs)
+  * [Edit `public/index.html`](#edit-publicindexhtml)
+  * [Edit `public/style.css`](#edit-publicstylecss)
+* [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
   
 ## Assumed Knowledge
 
@@ -22,11 +30,24 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * Web API
 * Working knowledge of NPM, NodeJS and ExpressJS
 
-Some things in this walkthrough may seem unnecessary to the more experienced reader—those things (often in the form of code comments) are included in the hope that the more naive readers can still benefit from this walkthrough.
+Some things in this walkthrough may seem unnecessary to the more experienced
+reader—those things (often in the form of code comments) are included in the
+hope that the more naive readers can still benefit from this walkthrough.
+
+## General Notes
+
+### Regarding `console` Methods
+
+Since this is a learning exercise, being able to visualise the flow of data and
+data themelves, various `console` methods are used liberally.
+
+However, the `console` methods (such as `console.log()`) are commented out to
+emphasis the fact that they could leak impelementation detail in production code.
+A linter would usually be used to catch these statements during development.
 
 ## Setup
 
-### Creating Files and Directories
+### Create Files and Directories
 
 ```sh
 # Create project directory
@@ -47,7 +68,7 @@ touch style.css
 touch client.js
 ```
 
-### Editing `server.js`
+### Edit `server.js`
 
 ```javascript
 let express = require('express');
@@ -66,7 +87,7 @@ let listener = app.listen(3000, function() {
 });
 ```
 
-### Editing `public/index.html`
+### Edit `public/index.html`
 
 ```html
 <!DOCTYPE html>
@@ -89,22 +110,23 @@ let listener = app.listen(3000, function() {
           <legend>Login credentials</legend>
           <label>
             Username:
-            <input type="text" name="username" placeholder="Username" />
+            <input type="text" placeholder="Username" />
           </label>
           <label>
             Password:
-            <input type="password" name="password" placeholder="password" />
+            <input type="password" placeholder=="•••••••••" />
           </label>
         </fieldset>
         
-        <button type="submit" class="submit-button">Sign in</button>
+        <button id="button-signin" type="submit" class="button-signin">Sign in</button>
       </form>
     </main>
   </body>
 </html>
+
 ```
 
-### Editing `public/style.css`
+### Edit `public/style.css`
 
 ```css
 * {
@@ -147,11 +169,111 @@ label {
   height: 100vh;
 }
 
-.submit-button {
+.button-signin {
   margin: 1em 0em;
   font-size: 1em;
   line-height: 2em;
   border-radius: 4px;
 }
 ```
+## Step 1: Sending Login Credentials to the Server
+
+The features we will be implementing:
+
+* Write Client-side code so that login credentials can be sent to the server in JSON format
+* Setup a `POST` route `/signin` on the server for accepting login credentials from the client
+
+To avoid some of the complexities involved with the `multipart/form-data` content type,
+login credential are sent in the JSON format in this case. It is worth noting that, for
+security reasons, login credentials should be sent over SSL/TLS, or in other words,
+under the HTTPS protocol.
+
+An event listener should first be added to the sign-in button to capture the action:
+
+```javascript
+// public/client.js
+const HOST = '';
+let signInButton = document.getElementById('button-signin');
+
+signInButton.addEventListener('click', handleSignInButtonClick);
+
+function handleSignInButtonClick(event) {
+  event.preventDefault();
+}
+```
+
+The event handler `handleSignInButtonClick` is meant to retrieve the values of the
+username and password form inputs and `POST` if off to `/signin`. It can be
+implemented as follows:
+
+```javascript
+// ...
+
+function handleSignInButtonClick(event) {
+  event.preventDefault();
+  
+  let method = 'POST',
+      headers = { 'Content-Type': 'application/json' },
+      username = document.getElementById('input-username').value,
+      password = document.getElementById('input-password').value,
+      body = JSON.stringify({ username, password });
+      
+  fetch(`${HOST}/signin`, { method, headers, body })
+    .then((response) => {
+      // console.log(
+      //   'OK: ', response.ok,
+      //   '\nStatus: ', response.status,
+      //   '\nStatus text: ', response.statusText
+      // );
+      
+      return response.text();
+    });
+}
+```
+
+Since the '/signin' 'POST' route hasn't been set up on the server, submitting the
+form will result in a `404` response (give it a go by uncommenting `console.log`!).
+
+Once you are happy with the code above and the response returned by the server,
+setup the `POST` route as follows:
+
+```javascript
+// server.js
+
+// Routes
+
+// ...
+
+app.post('/signin', function(request, response) {
+  // console.log(`/signin, POST, request.body: ${request.body}`);
+  
+  response.status(501).send('(◕︿◕✿)');
+});
+```
+
+We are setting up the `/signin` route to return a `501 Not Implemented` reponse
+since we are leaving its implementation for later. Posting login credentials
+should now result in a `501` reponse instead of a `404` response.
+
+If you are a step ahead and have already looked at `request.body` to find that it
+is currently `undefined`. To have the JSON string sent from the client parsed to
+`request.body`, we can use the `bodyParser` middleware:
+
+```javascript
+let express = require('express');
+let bodyParser = require('body-parser');
+
+let app = express();
+
+// Middlewares
+app.use(express.static('public'));
+app.use(bodyParser.json());
+
+// ...
+```
+
+If everything is implemented correctly, `request.body` should now be a JSON object
+that mirrors what is sent from the client. Do keep in mind that logging sensitive
+data to the console is a potential security risk!
+
 
