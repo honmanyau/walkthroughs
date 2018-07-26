@@ -1,12 +1,12 @@
-# ExpressJS Session-based Authentication
+# ExpressJS Cookie Session-based Authentication
 
 ## Introduction
 
-This is a walkthrough that demonstrates how session-based authentication works on an NodeJS-ExpressJS server.
+This is a walkthrough that demonstrates how cookie session-based authentication works on an NodeJS-ExpressJS server.
 
-The motivation for writing this is because there is almost every article that you find out there (at the time of writing) is about PassportJS/Auth0/Firebase... etc., and the only article (that I managed to find) about implementing session-based authentication from scratch is effectively the usual copypasta-style tutorial.
+The motivation for writing this is because there is almost every article that you find out there (at the time of writing) is about PassportJS/Auth0/Firebase... etc., and the only article (that I managed to find) about implementing cookie session-based authentication from scratch is effectively the usual copypasta-style tutorial.
 
-As such, this walkthrough intends to be a slightly lower-level exploration that shows how various parts fit together where authentication is concerned. **The code is not meant to be production-ready** and, in addition, please take the information shown in this walkthrough with a grain of salt as I have not had any training in cybers security so.
+As such, this walkthrough intends to be a slightly lower-level exploration that shows how various parts fit together where authentication is concerned. **The code is not meant to be production-ready** and, in addition, please take the information shown in this walkthrough with a grain of salt as I haven't had any training in cybers security so.
 
 If you spot any mistakes or anything that you think is a really bad idea—please kindly raise an issue to let me know (and it will be very much appreciated
 
@@ -24,7 +24,8 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
 * [Step 2: `POST`ing Login Credentials to the Server](#step-2-posting-login-credentials-to-the-server)
 * [Step 3: Implementing the `/signup` Route](#step-3-implementing-the-signup-route)
-  
+* [Step 4: Enabling Session](#enabling-session)
+
 ## Assumed Knowledge
 
 * JavaScript (ES6)
@@ -32,20 +33,15 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * Web API
 * Working knowledge of NPM, NodeJS and ExpressJS
 
-Some things in this walkthrough may seem unnecessary to the more experienced
-reader—those things (often in the form of code comments) are included in the
-hope that the more naive readers can still benefit from this walkthrough.
+Some things in this walkthrough may seem unnecessary to the more experienced reader—those things (often in the form of code comments) are included in the hope that the more naive readers can still benefit from this walkthrough.
 
 ## General Notes
 
 ### Regarding `console` Methods
 
-Since this is a learning exercise, being able to visualise the flow of data and
-data themelves, various `console` methods are used liberally.
+Since this is a learning exercise, being able to visualise the flow of data and data themelves, various `console` methods are used liberally.
 
-However, the `console` methods (such as `console.log()`) are commented out to
-emphasis the fact that they could leak impelementation detail in production code.
-A linter would usually be used to catch these statements during development.
+However, the `console` methods (such as `console.log()`) are commented out to emphasis the fact that they could leak implementation detail in production code. A linter would usually be used to catch these statements during development.
 
 ## Setup
 
@@ -59,11 +55,12 @@ cd walkthrough
 mkdir public
 
 # Install dependencies
-npm install express bcrypt
+npm install express bcrypt express-session dotenv
 
 # Create files
 touch server.js
 touch User.js
+touch .env
 
 cd public
 touch index.html
@@ -90,6 +87,12 @@ let listener = app.listen(3000, function() {
 });
 ```
 
+### Edit `.env`
+
+```sh
+SESSION_SECRET='superc4l1fr4g1l1st1cexpi4l1d0c10us'
+```
+
 ### Edit `User.js`
 
 ```javascript
@@ -98,16 +101,16 @@ module.exports = (function() {
       create = () => {},
       findOne = () => {},
       publicAPI = {};
-  
-  create = function({ username, password }) {
+
+  create = function({ username, password, email, mobile }) {
     return new Promise(function(resolve, reject) {
       let usernameIsString = typeof username === 'string',
         passwordIsString = typeof password === 'string',
         valuesAreValid = usernameIsString && passwordIsString;
-    
+
       if (valuesAreValid) {
         let uid = 'uid' + (++database.entries),
-            user = { uid, username, password };
+            user = { uid, username, password, email, mobile };
 
         database.users[uid] = user;
         resolve({ ...user });
@@ -117,30 +120,30 @@ module.exports = (function() {
       }
     });
   };
-  
+
   findOne = function({ username, uid }) {
     return new Promise(function(resolve, reject) {
       let user = database.users[uid];
-      
+
       if (!user) {
         for (let id in database.users) {
           let entry = database.users[id];
-          
+
           if (username === entry.username) {
             user = { ...entry };
           }
         }
       }
-      
+
       resolve(user || null);
     });
   };
-  
+
   publicAPI = {
     create,
     findOne
   };
-                
+
   return publicAPI;
 })();
 ```
@@ -157,10 +160,10 @@ module.exports = (function() {
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link rel="stylesheet" href="style.css">
-    
+
     <script src="client.js" defer></script>
   </head>
-  
+
   <body>
     <main id="app" class="app flex justify-center align-center">
       <form class="flex flex-column justify-center">
@@ -175,7 +178,19 @@ module.exports = (function() {
             <input id="input-password" type="password" placeholder="•••••••••" />
           </label>
         </fieldset>
-        
+
+        <fieldset>
+          <legend>Contact details</legend>
+          <label>
+            E-mail address:
+            <input id="input-email" type="email" placeholder="nadeshiko@nyanpasu.com" />
+          </label>
+          <label>
+            Mobile number:
+            <input id="input-mobile" type="mobile" placeholder="+61 412 345 678" />
+          </label>
+        </fieldset>
+
         <button id="button-signup" class="button-form" type="button" data-route="signup">Sign up</button>
         <button id="button-signin" class="button-form" type="button" data-route="signin">Sign in</button>
       </form>
@@ -238,16 +253,12 @@ label {
 
 This step involves the following:
 
-* Write client-side code so that login credentials can be sent to the server in JSON format
-* Make the functionality available to both the "Sign in" and "Sign up" buttons
+* Writing client-side code so that login credentials can be sent to the server in JSON format
+* Making the functionality available to both the "Sign in" and "Sign up" buttons
 
-To avoid some of the complexities involved with the `multipart/form-data` content type,
-login credential are sent in the JSON format in this case. It is worth noting that, for
-security reasons, login credentials should be sent over SSL/TLS, or in other words,
-under the HTTPS protocol.
+To avoid some of the complexities involved with the `multipart/form-data` content type, login credential are sent in the JSON format in this case. It is worth noting that, for security reasons, login credentials should be sent over SSL/TLS, or in other words, under the HTTPS protocol.
 
-An event listener should first be added to the sign-in and sign-up buttons to capture the 
-action:
+An event listener should first be added to the sign-in and sign-up buttons to capture the action:
 
 ```javascript
 // public/client.js
@@ -264,10 +275,7 @@ function handleButtonClick(event) {
 }
 ```
 
-The event handler `handleButtonClick` is meant to retrieve the values of the
-username and password form inputs and `POST` if off to the appropriate route
-on the server; the appropriate route is store as a `data-` attribute on each
-of the button elements in our case. The implementation is as follows:
+The event handler `handleButtonClick` is meant to retrieve the values of the username and password form inputs and `POST` if off to the appropriate route on the server; the appropriate route is store as a `data-` attribute on each of the button elements in our case. The implementation is as follows:
 
 ```javascript
 // public/client.js
@@ -276,14 +284,16 @@ of the button elements in our case. The implementation is as follows:
 
 function handleButtonClick(event) {
   event.preventDefault();
-  
+
   let route = event.target.datasets.route,
       method = 'POST',
       headers = { 'Content-Type': 'application/json' },
       username = document.getElementById('input-username').value,
       password = document.getElementById('input-password').value,
-      body = JSON.stringify({ username, password });
-      
+      email = document.getElementById('input-email').value,
+      mobile = document.getElementById('input-mobile').value,
+      body = JSON.stringify({ username, password, email, mobile });
+
   fetch(`${HOST}/${route}`, { method, headers, body })
     .then((response) => {
       // console.log(
@@ -295,9 +305,7 @@ function handleButtonClick(event) {
 }
 ```
 
-Since the `/signin` and `/signup` `POST` routes have not been set up on the server,
-clicking on the buttons will result in a `404` response (give it a go by uncommenting
-`console.log`!).
+Since the `/signin` and `/signup` `POST` routes haven't been set up on the server, clicking on the buttons will result in a `404` response (give it a go by uncommenting `console.log`!).
 
 ### Step 2: `POST`ing Login Credentials to the Server
 
@@ -306,8 +314,7 @@ This step involves the following:
 * Initial setup of a `POST` route, `/signup`, on the server for creating a new user with the credentials provided
 * Initial setup of a `POST` route, `/signin`, on the server for authenticating an existing user
 
-Once you are happy with the code above and the response returned by the server,
-setup the `POST` route as follows:
+Once you are happy with the code above and the response returned by the server, setup the `POST` route as follows:
 
 ```javascript
 // server.js
@@ -318,25 +325,20 @@ setup the `POST` route as follows:
 
 app.post('/signup', function(request, response) {
   // console.log(`/signup, POST, request.body: ${request.body}`);
-  
+
   response.status(501).send('(◕︿◕✿)');
 });
 
 app.post('/signin', function(request, response) {
   // console.log(`/signin, POST, request.body: ${request.body}`);
-  
+
   response.status(501).send('(◕︿◕✿)');
 });
 ```
 
-We are setting up the `/signup` and `/signin` routes to return a `501 Not
-Implemented` reponse since we are leaving its implementation for later.
-Posting login credentials should now result in a `501` reponse instead of
-a `404` response.
+We are setting up the `/signup` and `/signin` routes to return a `501 Not Implemented` response since we are leaving its implementation for later. Posting login credentials should now result in a `501` response instead of a `404` response.
 
-If you are a step ahead and have already looked at `request.body` to find that it
-is currently `undefined`. To have the JSON string sent from the client parsed to
-`request.body`, we can use the `bodyParser` middleware:
+If you are a step ahead and have already looked at `request.body` to find that it is currently `undefined`. To have the JSON string sent from the client parsed to `request.body`, we can use the `bodyParser` middleware:
 
 ```javascript
 // server.js
@@ -353,25 +355,18 @@ app.use(bodyParser.json());
 // ...
 ```
 
-If everything is implemented correctly, `request.body` should now be a JSON object
-that mirrors what is sent from the client. Do keep in mind that logging sensitive
-data to the console is a potential security risk!
+If everything is implemented correctly, `request.body` should now be a JSON object that mirrors what is sent from the client. Do keep in mind that logging sensitive data to the console is a potential security risk!
 
 ## Step 3: Implementing the `/signup` Route
 
-This step involves the implemention for data is posted to the `/signup` route:
+This step involves the implementation for handling data posted to the `/signup` route:
 
-* Check whether the username submitted by the client already exists
-* Create a user if the username received from the client does not already exist and the password is valid
+* Checking whether the username submitted by the client already exists
+* Creating a user if the username received from the client does not already exist and the password is valid
 
-**Note**: we won't be setting up and using a database and using a DBMS in this
-walkthrough—user data is stored in a plain old JavaScript object
-([POJO](https://leanpub.com/javascriptallongesix/read)). There is a multitude
-of reasons for why one should use a database instead of writing to disk in a real,
-production environment, so please don't do this in a real app/website!
+**Note 3.1**: we won't be setting up and using a database and using a DBMS in this walkthrough—user data is stored in a plain old JavaScript object ([POJO](https://leanpub.com/javascriptallongesix/read)). There is a multitude of reasons for why one should use a database instead of writing to disk in a real, production environment, so please don't do this in a real app/website!
 
-**Note 2**: we have omitted both client-side and server-side password valdiation
-in this walkthrough—please make sure you implement those in a real app/website!
+**Note 3.2**: we have omitted both client-side and server-side password valdiation in this walkthrough—please make sure you implement those in a real app/website!
 
 To begin with, import our fake `User` model:
 
@@ -387,29 +382,24 @@ let User = require('./User.js');
 // ...
 ```
 
-To check if a username already exists in the database, we use the
-`findOne` method, which either returns a `Promise` object that is
-resolved with `{ uid, username, password }` when a user with the
-username provided is found, or `null` otherwise:
+To check if a username already exists in the database, we use the `findOne` method, which either returns a `Promise` object that is resolved with `{ uid, username, password }` when a user with the username provided is found, or `null` otherwise:
 
 ```javascript
 // server.js
 
 app.post('/signup', function(request, response) {
   let { username, password } = request.body;
-  
+
   User.findOne({ username })
     .then((user) => {
       // console.log(user);
     });
-  
+
   response.status(501).send('(◕︿◕✿)');
 });
 ```
 
-And if a user does not exist, we should first encrypt create an entry
-in the database using the `create` method; we are using the popular library
-[`bcrypt`](https://github.com/kelektiv/node.bcrypt.js) to do this:
+And if a user does not exist, we should first encrypt create an entry in the database using the `create` method; we are using the popular library [`bcrypt`](https://github.com/kelektiv/node.bcrypt.js) to do this:
 
 ```javascript
 // server.js
@@ -422,7 +412,7 @@ let bcrypt = require('bcrypt');
 
 app.post('/signup', function(request, response) {
   let { username, password } = request.body;
-  
+
   User.findOne({ username })
     .then((user) => {
       if (!user) {
@@ -434,19 +424,14 @@ app.post('/signup', function(request, response) {
         });
       }
     });
-  
+
   response.status(501).send('(◕︿◕✿)');
 });
 ```
 
-**Note**: If you unsure why passwords need to be encrypted, please spend
-some time researching into the topic. I personally find
-[this article](https://hackernoon.com/your-node-js-authentication-tutorial-is-wrong-f1a3bf831a46)
-to be a good starting point.
+**Note 3.3**: If you unsure why passwords need to be encrypted, please spend some time researching into the topic. I personally find [this article](https://hackernoon.com/your-node-js-authentication-tutorial-is-wrong-f1a3bf831a46) to be a good starting point.
 
-Using the hash created by bcrypt, we can now create a new user using the
-`create` method available to `User` and send a response back to the client
-accordingly:
+Using the hash created by `bcrypt`, we can now create a new user using the `create` method available to `User` and send a response back to the client accordingly:
 
 ```javascript
 // server.js
@@ -454,10 +439,10 @@ accordingly:
 // ...
 
 app.post('/signup', function(request, response) {
-  // console.log(`/signup, POST, request.body: ${JSON.stringify(request.body)}`);
-  
+  // console.log('/signup, POST, request.body: ', request.body);
+
   let { username, password } = request.body;
-  
+
   User.findOne({ username })
     .then((user) => {
       if (!user) {
@@ -467,7 +452,7 @@ app.post('/signup', function(request, response) {
           //   '\nHash: ', hash
           // );
           User.create({ username, password: hash });
-          
+
           response.json({ message: 'Successfully created new user.' });
         });
       }
@@ -478,13 +463,9 @@ app.post('/signup', function(request, response) {
 });
 ```
 
-The `create` method returns a `Promise` object that is resolved with an
-object in the form of `{ uid, username, password }` if you wish to inspect
-the object representing a newly created user.
+The `create` method returns a `Promise` object that is resolved with an object in the form of `{ uid, username, password }` if you wish to inspect the object representing a newly created user.
 
-Finally, we process the response from the server on the client side by
-returning `response.json()` in the existing `then` and adding a second
-`then`:
+Finally, we process the response from the server on the client side by returning `response.json()` in the existing `then` and adding a second `then`:
 
 ```javascript
 // public/client.js
@@ -493,7 +474,7 @@ returning `response.json()` in the existing `then` and adding a second
 
 function handleButtonClick(event) {
   // ...
-      
+
   fetch(`${HOST}/${route}`, { method, headers, body })
     .then((response) => {
       // console.log(
@@ -501,7 +482,7 @@ function handleButtonClick(event) {
       //   '\nStatus: ', response.status,
       //   '\nStatus text: ', response.statusText
       // );
-    
+
       return response.json();
     })
     .then((data) => {
@@ -513,5 +494,123 @@ function handleButtonClick(event) {
 }
 ```
 
-This is a good point to try creating users and inspect what is logged to
-the console on both the server side and client side.
+This is a good place to try creating users and inspect what is logged to the console on both the server side and client side. Note that since the fake database resides in memory, you will need to restart the server if you wish to restart with a clean database.
+
+## Step 4: Enabling Session
+
+This step involves the following:
+
+* Developing and understanding of the flow in a typical cookie session-based authentication
+* Enabling cookie session with a session store
+
+While we can store and retrieve login credentials from our (fake) database now, we are faced with another question—how do we actually remember the user as signed in?
+
+Our simple web app does not currently remember whether or not a user has already been authenticated. A [cookie](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) is a small piece of data that can passed between a server and a browser every time a data is requested or served, it is commonly used for establishing login sessions and is what we will be using.
+
+Before adding anything else, it is worthwhile inspecting `request.session` using `console.log` in `/signup` route:
+
+```javascript
+app.post('/signup', function(request, response) {
+  // console.log('/signup, POST, request.body: ', request.body);
+  // console.log('/signup, request.session: ', request.session);
+
+  // ...
+});
+```
+
+Accessing the route by pressing the "Sign up" button should show that `request.session` is `undefined`.
+
+To cookie session mechanisms on our server, we add `express-session` to it as a middleware as follows:
+
+```javascript
+// server.js
+
+let express = require('express');
+let bodyParser = require('body-parser');
+let bcrypt = require('bcrypt');
+let session = require('express-session');
+
+let app = express();
+
+let User = require('./User.js');
+
+// Middlewares
+app.use(express.static('public'));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+The option `secret` is required for cookie signing (it can be a string or an array, for more information, please refer to [the documentation](https://github.com/expressjs/session)).
+
+Both `resave` and `saveUninitialized` no longer accept default options at the time of writing. `resave` is an option that, according to the documentation, depends mostly on whether or not the store being used implements the `touch` method; the default **not-for-production** memory store does have the `touch` method implemented and we are setting `resave` to false in our case.
+
+For an excellent explanation about `resave` and `saveUninitialized`, please read the accepted answer in [this StackOverflow thread](https://stackoverflow.com/questions/40381401/when-use-saveuninitialized-and-resave-in-express-session#40396102).
+
+Coming back to the `saveUninitialized` option, this option specifies whether or not an "uninitialised" session is saved to the session store. A session is considered initialised if `request.session` has been modified, setting it to `false` reduces the number of sessions being written to the store.
+
+The effect of this option can be seen by examining cookie session storage; to see the effect of this setting on our code using Firefox Developer Edition, open the Storage Inspector (⇧F9) > Cookies and highlight the URL for our web page. There should be not cookies listed and you should see the message "No data present for selected host".
+
+Go through the sign up process, check the console (if you haven't commented out the code for logging), while paying attention to the table. There should be no changes and the message "No data present for selected host" remains.
+
+Now set `saveUninitialized` to `true` and repeat the process—this time you should see new entry as soon as you press the "Sign up" button; that is, a session is saved to the store even though we haven't made any change to it. Once you are happy with what we have just done, clean up the session cookie by right clicking on the entry and selecting "Delete all session cookies" and set `saveUninitialized` back to `false`, since we only want to initialise a session for an authenticated user:
+
+```javascript
+// server.js
+
+// ...
+
+// Middlewares
+app.use(express.static('public'));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false
+}));
+```
+
+As mentioned above, we want to initialise a session only for an authenticated user. There are two points in our webpage where a user can be authenticated:
+
+* Right after signing up. More specifically, right after `User.create` in our `/signup` route implementation (note that not all websites do this, particularly those require e-mail confirmation)
+* Right after signing in, which we haven't implemented yet and will come back to later
+
+What we will do in our case is simply assign the object `{ username }` to the `request.session.user` property after a user is successfully created:
+
+```javascript
+// server.js
+
+// ...
+
+app.post('/signup', function(request, response) {
+  // console.log('/signup, POST, request.body: ', request.body);
+  // console.log('/signup, request.session: ', request.session);
+
+  let { username, password } = request.body;
+
+  User.findOne({ username })
+    .then((user) => {
+      if (!user) {
+        bcrypt.hash(password, 12, function(error, hash) {
+          // console.log(
+          //   'Password: ', password,
+          //   '\nHash: ', hash
+          // );
+          User.create({ username, password: hash });
+
+          request.session.user = { username };
+          // console.log(request.session);
+          response.send({ message: 'Successfully created new user.' });
+        });
+      }
+      else {
+        response.send({ error: 'Username already taken.' });
+      }
+    });
+});
+
+// ...
+```
+
+Now open Storage Inspector (⇧F9) > Cookies and highlight the URL for our web page again and create a **new user**—a session cookie should now appear, indicating that the user is considered authenticated and a session is stored in the session store!
