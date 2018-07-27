@@ -26,7 +26,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 3: Implementing the `/signup` Route](#step-3-implementing-the-signup-route)
 * [Step 4: Enabling Session](#step-4-enabling-session)
 * [Step 5: Serving Protected Pages](#step-5-serving-protected-pages)
-* [Step 6: ]()
+* [Step 6: Serving Authorised Content](#step-6-serving-authorised-content)
 
 ## Assumed Knowledge
 
@@ -458,7 +458,7 @@ To check if a username already exists in the database, we use the `findOne` meth
 // server.js
 
 app.post('/signup', function(request, response) {
-  let { username, password } = request.body;
+  let { username, password, email, mobile } = request.body;
 
   User.findOne({ username })
     .then((user) => {
@@ -481,7 +481,7 @@ let bcrypt = require('bcrypt');
 // ...
 
 app.post('/signup', function(request, response) {
-  let { username, password } = request.body;
+  let { username, password, email, mobile } = request.body;
 
   User.findOne({ username })
     .then((user) => {
@@ -511,7 +511,7 @@ Using the hash created by `bcrypt`, we can now create a new user using the `crea
 app.post('/signup', function(request, response) {
   // console.log('/signup, POST, request.body: ', request.body);
 
-  let { username, password } = request.body;
+  let { username, password, email, mobile } = request.body;
 
   User.findOne({ username })
     .then((user) => {
@@ -521,7 +521,7 @@ app.post('/signup', function(request, response) {
           //   'Password: ', password,
           //   '\nHash: ', hash
           // );
-          User.create({ username, password: hash });
+          User.create({ username, password: hash, email, mobile });
 
           response.json({ message: 'Successfully created new user.' });
         });
@@ -657,7 +657,7 @@ app.post('/signup', function(request, response) {
   // console.log('/signup, POST, request.body: ', request.body);
   // console.log('/signup, request.session: ', request.session);
 
-  let { username, password } = request.body;
+  let { username, password, email, mobile } = request.body;
 
   User.findOne({ username })
     .then((user) => {
@@ -667,11 +667,11 @@ app.post('/signup', function(request, response) {
           //   'Password: ', password,
           //   '\nHash: ', hash
           // );
-          User.create({ username, password: hash });
+          User.create({ username, password: hash, email, mobile });
 
           request.session.user = { username };
           // console.log(request.session);
-          response.send({ message: 'Successfully created new user.' });
+          response.json({ message: 'Successfully created new user.' });
         });
       }
       else {
@@ -816,10 +816,107 @@ app.post('/signup', function(request, response) {
 });
 ```
 
+And on the client side:
 
+```javascript
+// public/client.js
 
+// ...
 
+function handleIndexButtonClick(event) {
+  // ...
 
+  // Authentication request
+  fetch(`${HOST}/${route}`, { method, headers, body, redirect: 'follow' })
+    .then((response) => {
+      console.log(
+        'OK: ', response.ok,
+        '\nStatus: ', response.status,
+        '\nStatus text: ', response.statusText
+      );
+
+      if (response.redirected) {
+        window.location.assign(response.url);
+      }
+      else {
+        return response.json();
+      }
+    })
+    .then((data) => {
+      console.log(data);
+    })
+    .catch((error) => {
+      console.error(`Something went wrong during sign in! Error: ${error}`);
+    });
+}
+
+// ...
+```
+
+## Step 6: Serving Authorised Content
+
+In this step we will:
+
+* Show private/personal information that is user-specific on the dashboard
+
+Our dashboard is currently only a form that does nothing; ideally we would like to show a user her/his profile details and provide the ability to change those details. Since we won't be implementing server-side rendering, we will do this my making a request to a makeshift endpoint, `/api/user`, that returns some private information to an authenticated user:
+
+```javascript
+// server.js
+
+app.get('/api/user', checkAuth, function(request, response) {
+  // ...
+});
+```
+
+We are using the `checkAuth` middleware for this route since we don't expect an unauthenticated user to perform this action. This route returns a JSON response containing the username, e-mail address and mobile number to the client:
+
+```javascript
+// server.js
+
+// ...
+
+app.get('/api/user', checkAuth, function(request, response) {
+  let { username } = request.session.user;
+
+  User.findOne({ username })
+    .then((user) => {
+      response.json({ username, email, mobile });
+    });
+});
+
+// ...
+```
+
+And on the client side:
+
+```javascript
+// public/client.js
+
+// ...
+
+function initDashboard() {
+  let usernameInput = document.getElementById('input-username'),
+      newPasswordInput = document.getElementById('input-newpassword'),
+      confirmNewPasswordInput = document.getElementById('input-confirmnewpassword'),
+      emailInput = document.getElementById('input-email'),
+      mobileInput = document.getElementById('input-mobile');
+
+  fetch('/api/user')
+    .then((response) => response.json())
+    .then((data) => {
+      let { username, email, mobile } = data;
+
+      usernameInput.value = username;
+      emailInput.value = email;
+      mobileInput.value = mobile;
+    });
+}
+
+// ...
+```
+
+Test your code by creating a new account with a non-empty e-mail address and a non-empty mobile number. You should now see those private information in the appropriate fields once you are redirected to the dashboard.
 
 
 
