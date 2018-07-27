@@ -4,9 +4,9 @@
 
 This is a walkthrough that demonstrates how cookie session-based authentication works on an NodeJS-ExpressJS server.
 
-The motivation for writing this is because there is almost every article that you find out there (at the time of writing) is about PassportJS/Auth0/Firebase... etc., and the only article (that I managed to find) about implementing cookie session-based authentication from scratch is effectively the usual copypasta-style tutorial.
+The motivation for writing this is because there is almost every article that you find out there (at the time of writing) is about PassportJS/Auth0/Firebase... etc., and the only articles (that I managed to find) about implementing cookie session-based authentication from scratch is effectively the usual copypasta-style tutorial.
 
-As such, this walkthrough intends to be a slightly lower-level exploration that shows how various parts fit together where authentication is concerned. **The code is not meant to be production-ready** and, in addition, please take the information shown in this walkthrough with a grain of salt as I haven't had any training in cybers security so.
+As such, this walkthrough intends to be a slightly lower-level exploration that shows how various parts fit together where authentication is concerned. **The code is not meant to be production-ready** and, in addition, please take the information shown in this walkthrough with a grain of salt as I haven't had any training in cybers security.
 
 If you spot any mistakes or anything that you think is a really bad idea—please kindly raise an issue to let me know (and it will be very much appreciated
 
@@ -175,6 +175,7 @@ touch .env
 
 cd public
 touch index.html
+touch dashboard.html
 touch style.css
 touch client.js
 
