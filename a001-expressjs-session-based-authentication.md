@@ -19,6 +19,9 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Setup](#setup)
   * [Create Files and Directories](#create-files-and-directories)
   * [Edit `server.js`](#edit-serverjs)
+  * [Edit `.env`](#edit-env)
+  * [Edit `User.js`](#edit-userjs)
+  * [Edit `public/dashboard.html`](#edit-publicdashboardhtml)
   * [Edit `public/index.html`](#edit-publicindexhtml)
   * [Edit `public/style.css`](#edit-publicstylecss)
 * [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
@@ -28,6 +31,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 5: Serving Protected Pages](#step-5-serving-protected-pages)
 * [Step 6: Serving Authorised Content](#step-6-serving-authorised-content)
 * [Step 7: Implementing the `/signin` route](#step-7-implementing-the-signin-route)
+* [Step 8: Implementing Sign Out](#step-8-implementing-sign-out)
 
 ## Assumed Knowledge
 
@@ -211,7 +215,63 @@ module.exports = (function() {
     </main>
   </body>
 </html>
+```
 
+### Edit `public/dashboard.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Dashboard</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="client.js" defer></script>
+  </head>
+
+  <body id="dashboard">
+    <main id="app" class="app flex justify-center align-center">
+      <form class="flex flex-column justify-center">
+        <fieldset>
+          <legend>Login credentials</legend>
+
+          <label for="input-username">Username:</label>
+          <input id="input-username" type="text" disabled />
+
+          <label for="input-newpassword">New password:</label>
+          <input id="input-newpassword" type="text" placeholder="•••••••••" disabled />
+
+          <label for="input-confirmnewpassword">Confirm new password:</label>
+          <input id="input-confirmnewpassword" type="text" placeholder="•••••••••" disabled />
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact details</legend>
+
+          <label for="input-email">E-mail address:</label>
+          <input id="input-email" type="email" placeholder="nadeshiko@nyanpasu.com" />
+
+          <label for="input-mobile">Mobile number:</label>
+          <input id="input-mobile" type="mobile" placeholder="+61 412 345 678" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Authorise changes</legend>
+
+          <label for="input-password">Current password:</label>
+          <input id="input-password" type="text" placeholder="•••••••••" disabled />
+        </fieldset>
+
+        <button id="button-modify" class="button-form" type="button" data-route="signup">Modify</button>
+        <button id="button-signout" class="button-form" type="button" data-route="signout">Sign out</button>
+      </form>
+    </main>
+  </body>
+</html>
 ```
 
 ### Edit `public/style.css`
@@ -1020,11 +1080,126 @@ app.post('/signin', function(request, response) {
 
 It is worth noting that we won't have to touch `public/client.js` because we have already set it up such that it will handle both the `/signin` and `/signup` routes. Test the sign in functionality we have just implemented by creating a new account (sign up), going back to the home page, then sign in.
 
+## Step 8: Implementing Sign Out
 
+In this step we will:
 
+* Implement the ability to sign out
 
+In this walkthrough we are only signing a user out upon request from the user, so let's code this according to the flow of the process by starting with `public/client.js`:
 
+```javascript
+// ...
 
+function initDashboard() {
+  let usernameInput = document.getElementById('input-username'),
+      newPasswordInput = document.getElementById('input-newpassword'),
+      confirmNewPasswordInput = document.getElementById('input-confirmnewpassword'),
+      emailInput = document.getElementById('input-email'),
+      mobileInput = document.getElementById('input-mobile'),
+      signOutButton = document.getElementById('button-signout');
+
+  fetch('/api/user')
+    .then((response) => response.json())
+    .then((data) => {
+      let { username, email, mobile } = data;
+
+      usernameInput.value = username;
+      emailInput.value = email;
+      mobileInput.value = mobile;
+    });
+
+  signOutButton.addEventListener('click', handleSignOutButtonClick);
+}
+
+// ...
+
+function handleSignOutButtonClick(event) {
+    event.preventDefault();
+
+}
+
+// ...
+```
+
+The event handler `handleSignOutButtonClick` needs to send a `GET` request to the server's `/signout`:
+
+```javascript
+// ...
+
+function handleSignOutButtonClick(event) {
+    event.preventDefault();
+
+    fetch('/signout')
+      .then((response) => {
+        // console.log(response);
+      });
+}
+
+// ...
+```
+
+And once a response is received the user is redirected back to the home page:
+
+```javascript
+// ...
+
+function handleSignOutButtonClick(event) {
+    event.preventDefault();
+
+    fetch('/signout')
+      .then((response) => {
+        // console.log(response);
+
+        window.location.assign(response.url);
+      });
+}
+
+// ...
+```
+
+The `/signup` route hasn't been implemented yet, we start off with:
+
+```javascript
+// server.js
+
+// ...
+
+app.get('/signout', checkAuth, function(request, response) {
+  response.status(501).send('(◕︿◕✿)');
+});
+
+// ...
+```
+
+And we need to do two things here:
+
+1. End the session—`express-session` provides us with a `destroy` method that for
+2. Response with a redirect so that the user will be redirected back to the home page
+
+As such:
+
+```javascript
+// server.js
+
+// ...
+
+app.get('/signout', checkAuth, function(request, response) {
+  request.session.destroy((error) => {
+    if (!error) {
+      response.redirect('/');
+    }
+  });
+});
+
+// ...
+```
+
+And... that's it! For those who are curious of what exactly is happening, try doing the following with and without `destroy`ing the session:
+
+1. Sign up with a new account
+2. Click on sign out (you should now be redirected back to the home page)
+3. Visit the dashboard by appending `/dashboard` to the URL
 
 
 
