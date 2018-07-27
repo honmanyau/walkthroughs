@@ -32,6 +32,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 6: Serving Authorised Content](#step-6-serving-authorised-content)
 * [Step 7: Implementing the `/signin` route](#step-7-implementing-the-signin-route)
 * [Step 8: Implementing Sign Out](#step-8-implementing-sign-out)
+* [Conclusion](#conclusion)
 
 ## Assumed Knowledge
 
@@ -53,9 +54,104 @@ Some things in this walkthrough may seem unnecessary to the more experienced rea
 
 ### Regarding `console` Methods
 
-Since this is a learning exercise, being able to visualise the flow of data and data themelves, various `console` methods are used liberally.
+Since this is a learning exercise, being able to visualise the flow of data and data themselves, various `console` methods are used liberally.
 
 However, the `console` methods (such as `console.log()`) are commented out to emphasis the fact that they could leak implementation detail in production code. A linter would usually be used to catch these statements during development.
+
+### The Lack of DRY, Design Patterns and Tests
+
+As you go through the walkthrough you will realise that there are a lot of places that can be refactored, tests could have been written for safer refactoring, and certain design patterns could have been used.
+
+The code you see is what is is  largely because I feel that higher level of abstractions and/or refactoring according to design patterns (I have actually tried) would detract from the focus of this walkthrough and cause confusion to the more naive readers. As an example, consider the following refactoring that I avoided:
+
+```javascript
+function handleIndexButtonClick(event) {
+  event.preventDefault();
+
+  let route = event.target.dataset.route,
+      method = 'POST',
+      headers = { 'Content-Type': 'application/json' },
+      username = document.getElementById('input-username').value,
+      password = document.getElementById('input-password').value,
+      email = document.getElementById('input-email').value,
+      mobile = document.getElementById('input-mobile').value,
+      body = JSON.stringify({ username, password, email, mobile });
+
+  // Authentication request
+  fetch(`${HOST}/${route}`, { method, headers, body })
+    .then((response) => {
+      console.log(
+        'OK: ', response.ok,
+        '\nStatus: ', response.status,
+        '\nStatus text: ', response.statusText
+      );
+
+      if (response.redirected) {
+        window.location.assign(response.url);
+      }
+      else {
+        return response.json();
+      }
+    })
+    .then((data) => {
+      console.log(data);
+    })
+    .catch((error) => {
+      console.error(`Something went wrong during sign in! Error: ${error}`);
+    });
+}
+```
+
+One could refactor this to:
+
+```javascript
+function handleIndexButtonClick(event) {
+  event.preventDefault();
+
+  let route = event.target.dataset.route;
+
+  makeAuthenticationRequest(`${HOST}/${route}`);
+}
+
+function makeAuthenticationRequest(path) {
+  let method = 'POST',
+      headers = { 'Content-Type': 'application/json' },
+      body = JSON.stringify(createRequestBodyObject());
+
+  fetch(path, { method, headers, body })
+    .then((response) => {
+      // console.log(
+      //   'OK: ', response.ok,
+      //   '\nStatus: ', response.status,
+      //   '\nStatus text: ', response.statusText
+      // );
+
+      if (response.redirected) {
+        window.location.assign(response.url);
+      }
+      else {
+        return response.json();
+      }
+    })
+    .then((data) => {
+      // console.log(data);
+    })
+    .catch((error) => {
+      // console.error(`Something went wrong during sign in! Error: ${error}`);
+    });
+}
+
+function createRequestBodyObject() {
+  let inputs = Array.from(document.getElementsByTagName('input')),
+      obj = {};
+
+  inputs.forEach((input) => {
+    obj[input.name] = input.value;
+  });
+
+  return obj;
+}
+```
 
 ## Setup
 
@@ -243,10 +339,10 @@ module.exports = (function() {
           <input id="input-username" type="text" disabled />
 
           <label for="input-newpassword">New password:</label>
-          <input id="input-newpassword" type="text" placeholder="•••••••••" disabled />
+          <input id="input-newpassword" type="text" placeholder="•••••••••" />
 
           <label for="input-confirmnewpassword">Confirm new password:</label>
-          <input id="input-confirmnewpassword" type="text" placeholder="•••••••••" disabled />
+          <input id="input-confirmnewpassword" type="text" placeholder="•••••••••" />
         </fieldset>
 
         <fieldset>
@@ -888,7 +984,7 @@ function handleIndexButtonClick(event) {
   // ...
 
   // Authentication request
-  fetch(`${HOST}/${route}`, { method, headers, body, redirect: 'follow' })
+  fetch(`${HOST}/${route}`, { method, headers, body })
     .then((response) => {
       console.log(
         'OK: ', response.ok,
@@ -1201,10 +1297,8 @@ And... that's it! For those who are curious of what exactly is happening, try do
 2. Click on sign out (you should now be redirected back to the home page)
 3. Visit the dashboard by appending `/dashboard` to the URL
 
+## Conclusion
 
+The steps above demonstrate some of the things that are commonly seen in session cookie-based authentication. There is a lot of room for refactoring (which you will likely do in a real website/app). You can also try implementing the functionality of the "Modify" button, which is supposed to work with the "Current password" input and, together, they are there to emphasise the [Defence in Depth](https://en.wikipedia.org/wiki/Defense_in_depth_%28computing%29) principle.
 
-
-
-
-
-===
+I hope that this walkthrough is helpful and feel free to raise any concerns/questions/corrections as an Issue. You are also more than welcome to submit pull requests.
