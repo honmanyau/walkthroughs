@@ -24,13 +24,22 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 1: Sending Login Credentials to the Server](#step-1-sending-login-credentials-to-the-server)
 * [Step 2: `POST`ing Login Credentials to the Server](#step-2-posting-login-credentials-to-the-server)
 * [Step 3: Implementing the `/signup` Route](#step-3-implementing-the-signup-route)
-* [Step 4: Enabling Session](#enabling-session)
+* [Step 4: Enabling Session](#step-4-enabling-session)
+* [Step 5: Serving Protected Pages](#step-5-serving-protected-pages)
+* [Step 6: ]()
 
 ## Assumed Knowledge
 
-* JavaScript (ES6)
+* JavaScript
+  * Basic ES6 syntax
+  * Gathering and destructuring
 * HTML5
+  * Working with various types of input elements
 * Web API
+  * Creating event listeners
+  * Handling events
+  * `fetch`
+  * `Promise`
 * Working knowledge of NPM, NodeJS and ExpressJS
 
 Some things in this walkthrough may seem unnecessary to the more experienced reader—those things (often in the form of code comments) are included in the hope that the more naive readers can still benefit from this walkthrough.
@@ -53,6 +62,7 @@ mkdir walkthrough
 
 cd walkthrough
 mkdir public
+mkdir middlewares
 
 # Install dependencies
 npm install express bcrypt express-session dotenv
@@ -66,6 +76,9 @@ cd public
 touch index.html
 touch style.css
 touch client.js
+
+cd ../middlewares
+touch checkAuth.js
 ```
 
 ### Edit `server.js`
@@ -80,6 +93,10 @@ app.use(express.static('public'));
 // Routes
 app.get('/', function(request, response) {
   response.sendFile(__dirname + '/public/index.html');
+});
+
+app.get('/dashboard', function(request, response) {
+  response.sendFile(__dirname + '/public/dashboard.html');
 });
 
 let listener = app.listen(3000, function() {
@@ -169,26 +186,22 @@ module.exports = (function() {
       <form class="flex flex-column justify-center">
         <fieldset>
           <legend>Login credentials</legend>
-          <label>
-            Username:
-            <input id="input-username" type="text" placeholder="Username" />
-          </label>
-          <label>
-            Password:
-            <input id="input-password" type="password" placeholder="•••••••••" />
-          </label>
+
+          <label for="input-username">Username:</label>
+          <input id="input-username" type="text" placeholder="Username" />
+
+          <label for="input-password">Password:</label>
+          <input id="input-password" type="password" placeholder="•••••••••" />
         </fieldset>
 
         <fieldset>
           <legend>Contact details</legend>
-          <label>
-            E-mail address:
-            <input id="input-email" type="email" placeholder="nadeshiko@nyanpasu.com" />
-          </label>
-          <label>
-            Mobile number:
-            <input id="input-mobile" type="mobile" placeholder="+61 412 345 678" />
-          </label>
+
+          <label for="input-email">E-mail address:</label>
+          <input id="input-email" type="email" placeholder="nadeshiko@nyanpasu.com" />
+
+          <label for="input-mobile">Mobile number:</label>
+          <input id="input-mobile" type="mobile" placeholder="+61 412 345 678" />
         </fieldset>
 
         <button id="button-signup" class="button-form" type="button" data-route="signup">Sign up</button>
@@ -197,6 +210,7 @@ module.exports = (function() {
     </main>
   </body>
 </html>
+
 ```
 
 ### Edit `public/style.css`
@@ -219,7 +233,12 @@ body {
 }
 
 label {
-  margin: auto 1em;
+  margin: 0.5em 0em;
+  display: block;
+}
+
+input {
+  font-size: 14px;
 }
 
 .flex {
@@ -243,12 +262,54 @@ label {
 }
 
 .button-form {
-  margin: 1em 0em;
-  font-size: 1em;
-  line-height: 2em;
-  border-radius: 4px;
+  margin-top: 1em;
+  font-size: 14px;
+  line-height: 1.999em;
+  border: 2px solid #DDD;
+  border-radius: 1em;
+  color: white;
+  background: none;
+  box-shadow: none;
+  transition: border-color 0.7s, color 0.7s;
+}
+
+.button-form:hover {
+  border-color: #1CE;
+  color: #1CE;
+}
+
+.button-form:active {
+  background: rgba(255, 255, 255, 0.07);
 }
 ```
+
+### Edit `public/client.js`
+
+```javascript
+(function() {
+  const HOST = '';
+  let page = document.body.id,
+      methods = {
+        index: initIndex,
+        dashboard: initDashboard
+      };
+
+  methods[page]();
+
+
+  // ================
+  // Helper functions
+  // ================
+  function initIndex() {
+
+  }
+
+  function initDashboard() {
+
+  }
+})()
+```
+
 ## Step 1: Sending Login Credentials to the Server
 
 This step involves the following:
@@ -258,31 +319,38 @@ This step involves the following:
 
 To avoid some of the complexities involved with the `multipart/form-data` content type, login credential are sent in the JSON format in this case. It is worth noting that, for security reasons, login credentials should be sent over SSL/TLS, or in other words, under the HTTPS protocol.
 
-An event listener should first be added to the sign-in and sign-up buttons to capture the action:
-
-```javascript
-// public/client.js
-
-const HOST = '';
-let signInButton = document.getElementById('button-signin');
-let signUpButton = document.getElementById('button-signup');
-
-signInButton.addEventListener('click', handleButtonClick);
-signUpButton.addEventListener('click', handleButtonClick);
-
-function handleButtonClick(event) {
-  event.preventDefault();
-}
-```
-
-The event handler `handleButtonClick` is meant to retrieve the values of the username and password form inputs and `POST` if off to the appropriate route on the server; the appropriate route is store as a `data-` attribute on each of the button elements in our case. The implementation is as follows:
+An event listener should first be added to the sign-in and sign-up buttons to capture the action. Note that the starter files have been set up such that scripts meant for `index.html` are placed in the `initIndex` function:
 
 ```javascript
 // public/client.js
 
 // ...
 
-function handleButtonClick(event) {
+function initIndex() {
+  let signInButton = document.getElementById('button-signin'),
+      signUpButton = document.getElementById('button-signup');
+
+  signInButton.addEventListener('click', handleIndexButtonClick);
+  signUpButton.addEventListener('click', handleIndexButtonClick);
+}
+
+// ...
+
+function handleIndexButtonClick(event) {
+  event.preventDefault();
+}
+
+// ...
+```
+
+The event handler `handleIndexButtonClick` is meant to retrieve the values of the username and password form inputs and `POST` if off to the appropriate route on the server; the appropriate route is store as a `data-` attribute on each of the button elements in our case. The implementation is as follows:
+
+```javascript
+// public/client.js
+
+// ...
+
+function handleIndexButtonClick(event) {
   event.preventDefault();
 
   let route = event.target.datasets.route,
@@ -303,6 +371,8 @@ function handleButtonClick(event) {
       // );
     });
 }
+
+// ...
 ```
 
 Since the `/signin` and `/signup` `POST` routes haven't been set up on the server, clicking on the buttons will result in a `404` response (give it a go by uncommenting `console.log`!).
@@ -472,7 +542,7 @@ Finally, we process the response from the server on the client side by returning
 
 // ...
 
-function handleButtonClick(event) {
+function handleIndexButtonClick(event) {
   // ...
 
   fetch(`${HOST}/${route}`, { method, headers, body })
@@ -614,3 +684,148 @@ app.post('/signup', function(request, response) {
 ```
 
 Now open Storage Inspector (⇧F9) > Cookies and highlight the URL for our web page again and create a **new user**—a session cookie should now appear, indicating that the user is considered authenticated and a session is stored in the session store!
+
+## Step 5: Serving Protected Pages
+
+In this step we will:
+
+* Create an authentication middleware to check whether or not a user is already authenticated and has an active session
+* Serve a protected page that is meant only for authenticated and authorised users
+* Redirect a user to the dashboard on successful sign up
+
+**Note 5.1**: restart the server to clean up our fake database before continuing.
+
+Our dashboard page is meant only for authenticated users but it can currently be accessed by anyone (albeit not having anything interesting to look at), try visiting it by appending `/dashboard` to the URL. Since we are now passing a session cookie back and forth between the server and an authenticated user, all we need to do is check whether or not the user is authenticated, as indicated by the presence of the `request.session.user` object, before serving user content; we do this by implementing a middleware at the `/dashboard` route:
+
+```javascript
+// server.js
+
+app.get('/dashboard',
+  function(request, response, next) {
+    // Middleware
+  },
+  function(request, response) {
+    response.sendFile(__dirname + '/public/dashboard.html');
+  }
+);
+```
+
+In the middleware, we first check whether or not a `request.session.user` exist. If `request.session.user` exist and the `username` property is found, we call `next()` so that the sever can serve `dashboard.html`:
+
+```javascript
+// server.js
+
+app.get('/dashboard',
+  function(request, response, next) {
+    let { user } = request.session;
+
+    if (user) {
+      next();
+    }
+  },
+  function(request, response) {
+    response.sendFile(__dirname + '/public/dashboard.html');
+  }
+);
+```
+
+Otherwise the user is directed back to the home page:
+
+```javascript
+// server.js
+
+app.get('/dashboard',
+  function(request, response, next) {
+    let { user } = request.session;
+
+    if (user) {
+      next();
+    }
+    else {
+      response.redirect('/');
+    }
+  },
+  function(request, response) {
+    response.sendFile(__dirname + '/public/dashboard.html');
+  }
+);
+```
+
+Revisiting `/dashboard` should now redirect an unauthenticated user back to the home page.
+
+**Note 5.2**: it is worth noting that sending a response to redirect may not work well with certain front-end frameworks. In those cases, one can send a response that indicates successful sign in and handle redirection on the client side.
+
+The middleware that we have just created is actually general enough that we can use for it for other pages; even though we won't be implementing other protect routes, let's factor it out for practice:
+
+```javascript
+// middlwares/checkAuth.js
+
+module.exports = function(request, response, next) {
+  let { user } = request.session;
+
+  if (user) {
+    next();
+  }
+  else {
+    response.redirect('/');
+  }
+}
+```
+
+```javascript
+// server.js
+
+// ...
+
+let checkAuth = require('./middlewares/checkAuth.js');
+
+// ...
+
+app.get('/dashboard', checkAuth, function(request, response) {
+    response.sendFile(__dirname + '/public/dashboard.html');
+});
+```
+
+Make sure that the implementation is correct by visiting `/dashboard` with and without signing in. Finally, we can now redirect a user to the `/dashboard` upon successful sign up:
+
+```javascript
+// server.js
+
+app.post('/signup', function(request, response) {
+  // ...
+
+  User.findOne({ username })
+    .then((user) => {
+      if (!user) {
+        bcrypt.hash(password, 12, function(error, hash) {
+          // console.log(
+          //   'Password: ', password,
+          //   '\nHash: ', hash
+          // );
+          User.create({ username, password: hash });
+
+          request.session.user = { username };
+          // console.log(request.session);
+          response.redirect('/dashboard');
+        });
+      }
+      else {
+        response.send({ error: 'Username already taken.' });
+      }
+    });
+});
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+===
