@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Dashboard</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="client.js" defer></script>
+  </head>
+
+  <body id="dashboard">
+    <main id="app" class="app flex justify-center align-center">
+      <form class="flex flex-column justify-center">
+        <fieldset>
+          <legend>Login credentials</legend>
+
+          <label for="input-username">Username:</label>
+          <input id="input-username" type="text" disabled />
+
+          <label for="input-newpassword">New password:</label>
+          <input id="input-newpassword" type="text" placeholder="•••••••••" />
+
+          <label for="input-confirmnewpassword">Confirm new password:</label>
+          <input id="input-confirmnewpassword" type="text" placeholder="•••••••••" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact details</legend>
+
+          <label for="input-email">E-mail address:</label>
+          <input id="input-email" type="email" placeholder="nadeshiko@nyanpasu.com" />
+
+          <label for="input-mobile">Mobile number:</label>
+          <input id="input-mobile" type="mobile" placeholder="+61 412 345 678" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Authorise changes</legend>
+
+          <label for="input-password">Current password:</label>
+          <input id="input-password" type="text" placeholder="•••••••••" disabled />
+        </fieldset>
+
+        <button id="button-modify" class="button-form" type="button" data-route="signup">Modify</button>
+        <button id="button-signout" class="button-form" type="button" data-route="signout">Sign out</button>
+      </form>
+    </main>
+  </body>
+</html>

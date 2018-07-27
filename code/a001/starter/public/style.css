@@ -1,0 +1,65 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Century Gothic', sans-serif;
+  background: #333;
+  color: white;
+}
+
+label {
+  margin: 0.5em 0em;
+  display: block;
+}
+
+input {
+  font-size: 14px;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.app {
+  height: 100vh;
+}
+
+.button-form {
+  margin-top: 1em;
+  font-size: 14px;
+  line-height: 1.999em;
+  border: 2px solid #DDD;
+  border-radius: 1em;
+  color: white;
+  background: none;
+  box-shadow: none;
+  transition: border-color 0.7s, color 0.7s;
+}
+
+.button-form:hover {
+  border-color: #1CE;
+  color: #1CE;
+}
+
+.button-form:active {
+  background: rgba(255, 255, 255, 0.07);
+}

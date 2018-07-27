@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>All-purpose form!</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="client.js" defer></script>
+  </head>
+
+  <body id="index">
+    <main id="app" class="app flex justify-center align-center">
+      <form class="flex flex-column justify-center">
+        <fieldset>
+          <legend>Login credentials</legend>
+
+          <label for="input-username">Username:</label>
+          <input id="input-username" name="username" type="text" placeholder="Username" />
+
+          <label for="input-password">Password:</label>
+          <input id="input-password" name="password" type="password" placeholder="•••••••••" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact details</legend>
+
+          <label for="input-email">E-mail address:</label>
+          <input id="input-email" name="email" type="email" placeholder="nadeshiko@nyanpasu.com" />
+
+          <label for="input-mobile">Mobile number:</label>
+          <input id="input-mobile" name="mobile" type="mobile" placeholder="+61 412 345 678" />
+        </fieldset>
+
+        <button id="button-signup" class="button-form" type="button" data-route="signup">Sign up</button>
+        <button id="button-signin" class="button-form" type="button" data-route="signin">Sign in</button>
+      </form>
+    </main>
+  </body>
+</html>
