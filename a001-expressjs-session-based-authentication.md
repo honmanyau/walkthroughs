@@ -27,6 +27,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Step 4: Enabling Session](#step-4-enabling-session)
 * [Step 5: Serving Protected Pages](#step-5-serving-protected-pages)
 * [Step 6: Serving Authorised Content](#step-6-serving-authorised-content)
+* [Step 7: Implementing the `/signin` route](#step-7-implementing-the-signin-route)
 
 ## Assumed Knowledge
 
@@ -917,6 +918,112 @@ function initDashboard() {
 ```
 
 Test your code by creating a new account with a non-empty e-mail address and a non-empty mobile number. You should now see those private information in the appropriate fields once you are redirected to the dashboard.
+
+## Step 7: Implementing the `signin` route
+
+In this step we will:
+
+* Implement the ability to sign in
+
+The implementation for the  `/signin` route is similar to that of the `/signup` route, with the exception that we are comparing a password submitted by the user to its corresponding hash stored in our (fake) user database instead of creating a new entry. To begin with, we attempt to find an entry in the user database using the username submitted by the user:
+
+```javascript
+// server.js
+
+// ...
+
+app.post('/signin', function(request, response) {
+  // console.log(`/signin, POST, request.body: ${JSON.stringify(request.body)}`);
+
+  let { username, password } = request.body;
+
+  User.findOne({ username })
+    .then((user) => {
+      if (user) {
+
+      }
+      else {
+        response.json({ error: 'Incorrect login credentials.' });
+      }
+    });
+});
+
+// ...
+```
+
+We are responding with `"Incorrect login credentials"` instead of `"User not found"`—using a general response that is the same for any incorrect information, be it password or username or something else, has the advantage of giving less information to a bad actor.
+
+Once a user that matches the username provided is found, we should compare that the password provided with the hash stored in the database. We use `bcrypt`'s `compare` method to do this:
+
+```javascript
+// server.js
+
+// ...
+
+app.post('/signin', function(request, response) {
+  // console.log(`/signin, POST, request.body: ${JSON.stringify(request.body)}`);
+
+  let { username, password } = request.body;
+
+  User.findOne({ username })
+    .then((user) => {
+      if (user) {
+        let hash = user.password;
+
+        bcrypt.compare(password, hash, (error, result) => {
+
+        });
+      }
+      else {
+        response.json({ error: 'Incorrect login credentials.' });
+      }
+    });
+});
+
+// ...
+```
+
+Finally, we redirect the user to `/dashboard` if the password provided is valid and respond with `"Incorrect login credentials."` otherwise:
+
+```javascript
+// server.js
+
+// ...
+
+app.post('/signin', function(request, response) {
+  // console.log(`/signin, POST, request.body: ${JSON.stringify(request.body)}`);
+
+  let { username, password } = request.body;
+
+  User.findOne({ username })
+    .then((user) => {
+      if (user) {
+        let hash = user.password;
+
+        bcrypt.compare(password, hash, (error, result) => {
+          if (result) {
+            response.redirect('/dashboard');
+          }
+          else {
+            response.json({ error: 'Incorrect login credentials.' });
+          }
+        });
+      }
+      else {
+        response.json({ error: 'Incorrect login credentials.' });
+      }
+    });
+});
+
+// ...
+```
+
+It is worth noting that we won't have to touch `public/client.js` because we have already set it up such that it will handle both the `/signin` and `/signup` routes. Test the sign in functionality we have just implemented by creating a new account (sign up), going back to the home page, then sign in.
+
+
+
+
+
 
 
 
