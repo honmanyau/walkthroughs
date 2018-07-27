@@ -15,6 +15,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 
 * [Assumed Knowledge](#assumed-knowledge)
 * [General Notes](#general-notes)
+  * [Starter and Completed Code](#starter-and-completed-code)
   * [Regarding `console` Methods](#regarding-console-methods)
   * [The Lack of DRY, Design Patterns and Tests](#the-lack-of-dry-design-patterns-and-tests)
 * [Setup](#setup)
@@ -155,6 +156,14 @@ function createRequestBodyObject() {
 ```
 
 ## Setup
+
+### Starter and Completed Code
+
+Instead of manually setting up the project, you can also find the starter files as well as the completed project [here](https://github.com/honmanyau/walkthroughs/tree/master/code/a001). You will still need to install the required dependencies:
+
+```sh
+npm install express bcrypt express-session dotenv
+```
 
 ### Create Files and Directories
 
