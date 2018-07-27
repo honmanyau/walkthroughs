@@ -4,7 +4,7 @@ This repository contains of walkthroughs on things that I'm interested in.
 
 ## Articles
 
-1. [ExpressJS Cookie Session-based Authentication](https://github.com/honmanyau/walkthroughs/blob/master/a001-expressjs-session-based-authentication.md)
+1. [ExpressJS Cookie Session-based Authentication](https://github.com/honmanyau/walkthroughs/blob/master/a001-expressjs-cookie-session-based-authentication.md)
 
 ## License
 
