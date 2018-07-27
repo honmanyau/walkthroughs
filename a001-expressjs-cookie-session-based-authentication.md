@@ -16,6 +16,7 @@ If you spot any mistakes or anything that you think is a really bad idea—pleas
 * [Assumed Knowledge](#assumed-knowledge)
 * [General Notes](#general-notes)
   * [Regarding `console` Methods](#regarding-console-methods)
+  * [The Lack of DRY, Design Patterns and Tests](#the-lack-of-dry-design-patterns-and-tests)
 * [Setup](#setup)
   * [Create Files and Directories](#create-files-and-directories)
   * [Edit `server.js`](#edit-serverjs)
