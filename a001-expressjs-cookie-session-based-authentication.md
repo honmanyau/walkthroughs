@@ -811,12 +811,14 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  secure: true,
-  httpOnly: true
+  cookie: {
+    secure: true,
+    httpOnly: true
+  }
 }));
 ```
 
-Notice that we have also set the `secure` and `httpOnly` options to `true`. Setting `secure` to true forces our session cookies to only be sent via the HTTPS protocol, while setting `httpOnly` disable client-side JavaScript access using `document.cookie`. For a brief introduction to cookies, read [this MDN entry](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) on cookies.
+Notice that we have also set the `secure` and `httpOnly` cookie options to `true`. Setting `secure` to true forces our session cookies to only be sent via the HTTPS protocol, while setting `httpOnly` disable client-side JavaScript access using `document.cookie`. For a brief introduction to cookies, read [this MDN entry](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) on cookies.
 
 As mentioned above, we want to initialise a session only for an authenticated user. There are two points in our webpage where a user can be authenticated:
 
